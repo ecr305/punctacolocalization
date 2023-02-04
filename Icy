@@ -1,0 +1,152 @@
+// FIRST USE THE SPOT DETECTOR PLUGIN FOR THE TWO CHANNELS OF INTEREST
+// THEN CHECK THAT YOUR 2 DETECTIONS ARE IN THE SWIMMING POOL
+ 
+importClass(Packages.icy.swimmingPool.SwimmingObject)
+importClass(Packages.plugins.nchenouard.spot.DetectionResult)
+importClass(Packages.plugins.nchenouard.spot.Spot)
+maxDistanceXY = 0.250; // maximum distance between colocalized detections in x-y coordinates, in um
+maxDistanceZ = 0.500; // maximum distance between colocalized detections along the z-axis, in um
+xyScale = 0.057; // lateral pixel size in um
+zScale = 0.29; // distance between slices in um
+ 
+pool = gui.getSwimmingPool()
+swimmingObjects = pool.getObjects()
+// printf("num objects" + swimmingObjects.size())
+// look for the two first detection results
+ 
+detectionSet1 = null
+detectionSet2 = null
+ 
+ k = 0;
+ for (i = 0; i < swimmingObjects.size(); i++)
+ {
+    sobj = swimmingObjects.get(i)
+    if (sobj.getObject() instanceof DetectionResult)
+    {
+        if (k == 0)
+        {
+            detectionSet1 = sobj.getObject()
+            println("Detection Set 1 created at: " + sobj.getCreationDate())
+            k = k + 1
+        }
+        else
+        {
+            detectionSet2 = sobj.getObject()
+            println("Detection Set 2 created at: " + sobj.getCreationDate())
+            break;
+        }
+    }
+ }
+
+ 
+ 
+// compute the colocalization between both detection sets
+numDetections1 = 0
+numDetections2 = 0
+colocalizedDetections1 = 0
+nonColocalizedDetections1 = 0
+colocalizedDetections2 = 0
+colocalizedIntensity = []
+nonColocalizedIntensity = []
+
+ 
+ft1 = detectionSet1.getFirstFrameTime()
+ft2 = detectionSet2.getFirstFrameTime()
+if (ft2 < ft1)
+{
+    ft1 = ft2;
+}
+lt1 = detectionSet1.getLastFrameTime()
+lt2 = detectionSet2.getLastFrameTime()
+if (lt2 > lt1)
+{
+    lt1 = lt2;
+}
+ 
+for (t = ft1; t <= lt1; t++)
+{
+    v1List = detectionSet1.getDetectionsAtT(t)
+    numDetections1 = numDetections1 + v1List.size()
+     
+    v2List = detectionSet2.getDetectionsAtT(t)
+    numDetections2 = numDetections2 + v2List.size()
+    
+    
+    
+    if (!v1List.isEmpty() && !v2List.isEmpty())
+    {
+        // check for detections in set 1 cololocalized to set 2
+        for (i1 = 0; i1 < v1List.size(); i1++)
+        {
+            isColocalized = 0
+            spot1 = v1List.get(i1)
+            for (i2 = 0; i2 < v2List.size(); i2++)
+            {
+                spot2 = v2List.get(i2)
+                distXY = Math.sqrt(xyScale*xyScale*(spot1.mass_center.x - spot2.mass_center.x)*(spot1.mass_center.x - spot2.mass_center.x) + xyScale*xyScale*(spot1.mass_center.y - spot2.mass_center.y)*(spot1.mass_center.y - spot2.mass_center.y)) 
+                if (distXY < maxDistanceXY)
+                {
+                	distZ = Math.abs(zScale*(spot1.mass_center.z - spot2.mass_center.z)) 
+			if (distZ < maxDistanceZ)
+			{
+				colocalizedIntensity[colocalizedDetections1] = spot1.meanIntensity
+                    		colocalizedDetections1 = colocalizedDetections1 + 1
+                    		isColocalized = 1
+                    		break;
+			}
+                }
+            }
+            if (isColocalized == 0)
+            {
+            	nonColocalizedIntensity[nonColocalizedDetections1] = spot1.meanIntensity
+            	nonColocalizedDetections1 = nonColocalizedDetections1 + 1
+            }
+        }
+        // check for detections in set 1 cololocalized to set 2
+        for (i2 = 0; i2 < v2List.size(); i2++)
+        {
+            spot2 = v2List.get(i2)
+            for (i1 = 0; i1 < v1List.size(); i1++)
+            {
+                spot1 = v1List.get(i1)
+                distXY = Math.sqrt(xyScale*xyScale*(spot1.mass_center.x - spot2.mass_center.x)*(spot1.mass_center.x - spot2.mass_center.x) + xyScale*xyScale*(spot1.mass_center.y - spot2.mass_center.y)*(spot1.mass_center.y - spot2.mass_center.y)) 
+                if (distXY < maxDistanceXY)
+                {
+                	distZ = Math.abs(zScale*(spot1.mass_center.z - spot2.mass_center.z)) 
+			if (distZ < maxDistanceZ)
+			{                	
+                    		colocalizedDetections2 = colocalizedDetections2 + 1
+                    		break;
+			}
+                }
+            }           
+        }
+    }
+}
+ 
+println("===========================================")
+println("Number of detections set 1: " + numDetections1)
+println("Number of colocalized detections set 1: " + colocalizedDetections1)
+println("Colocalized ratio set1: " + (colocalizedDetections1/numDetections1))
+println()
+println("Number of detections set 2: " + numDetections2)
+println("Number of colocalized detections set 2: " + colocalizedDetections2)
+println("Colocalized ratio set 2: " + (colocalizedDetections2/numDetections2))
+println()
+println("Total colocalized ratio: " + ((colocalizedDetections2 + colocalizedDetections1)/(numDetections1 + numDetections2)))
+println("===========================================")
+
+
+// print intensities for colocalized and non colocalized detections in detection set 1
+println("Intensity set 1 colocalized to set 2:")
+for (i = 0; i < colocalizedIntensity.length; i++)
+{
+	println(colocalizedIntensity[i])
+}
+println("===========================================")
+println("Intensity set 1 non-colocalized to set 2:")
+for (i = 0; i < nonColocalizedIntensity.length; i++)
+{
+	println(nonColocalizedIntensity[i])
+}
+
